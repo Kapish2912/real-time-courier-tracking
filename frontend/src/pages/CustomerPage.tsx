@@ -1,5 +1,5 @@
+import { useEffect, useState } from 'react';
 import { Edit, Mail, Phone, PlusCircle, Search, Trash2 } from 'lucide-react';
-import { useState } from 'react';
 import { Button } from "../components/ui/button";
 import {
   Dialog,
@@ -19,17 +19,73 @@ import {
   TableRow
 } from "../components/ui/table";
 
+// Define the Customer type
+interface Customer {
+  CustomerId: number;
+  Customer_Name: string;
+  Customer_Address: string;
+  Customer_Phone: string;
+  email?: string; // Optional if not always provided
+  shipments?: number; // Optional if not always provided
+  joined?: string; // Optional if not always provided
+}
+
 const CustomersPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [newCustomer, setNewCustomer] = useState({
+    Customer_Name: '',
+    Customer_Address: '',
+    Customer_Phone: ''
+  });
 
-  // Mock data for customers
-  const customers = [
-    { id: 1, name: 'John Doe', email: 'john.doe@example.com', phone: '+1 123-456-7890', address: '123 Main St, New York, NY', shipments: 12, joined: '2024-01-15' },
-    { id: 2, name: 'Mary Johnson', email: 'mary.j@example.com', phone: '+1 234-567-8901', address: '456 Elm St, Chicago, IL', shipments: 8, joined: '2024-02-20' },
-    { id: 3, name: 'David Wilson', email: 'david.w@example.com', phone: '+1 345-678-9012', address: '789 Oak St, Los Angeles, CA', shipments: 15, joined: '2023-11-05' },
-    { id: 4, name: 'Emma Davis', email: 'emma.d@example.com', phone: '+1 456-789-0123', address: '321 Pine St, Miami, FL', shipments: 5, joined: '2024-03-10' },
-    { id: 5, name: 'James Taylor', email: 'james.t@example.com', phone: '+1 567-890-1234', address: '654 Cedar St, Houston, TX', shipments: 9, joined: '2023-12-15' },
-  ];
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/customers');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data: Customer[] = await response.json();
+        setCustomers(data);
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+      }
+    };
+
+    fetchCustomers();
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewCustomer(prevState => ({
+      ...prevState,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/customers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newCustomer),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add customer');
+      }
+
+      const result = await response.json();
+      console.log(result);
+      setIsDialogOpen(false);
+      setNewCustomer({ Customer_Name: '', Customer_Address: '', Customer_Phone: '' });
+    } catch (error) {
+      console.error('Error adding customer:', error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -62,11 +118,11 @@ const CustomersPage = () => {
           </TableHeader>
           <TableBody>
             {customers.map((customer) => (
-              <TableRow key={customer.id}>
-                <TableCell className="font-medium">{customer.name}</TableCell>
+              <TableRow key={customer.CustomerId}>
+                <TableCell className="font-medium">{customer.Customer_Name}</TableCell>
                 <TableCell className="hidden md:table-cell">{customer.email}</TableCell>
-                <TableCell className="hidden sm:table-cell">{customer.phone}</TableCell>
-                <TableCell className="hidden lg:table-cell">{customer.address}</TableCell>
+                <TableCell className="hidden sm:table-cell">{customer.Customer_Phone}</TableCell>
+                <TableCell className="hidden lg:table-cell">{customer.Customer_Address}</TableCell>
                 <TableCell>{customer.shipments}</TableCell>
                 <TableCell className="hidden md:table-cell">{customer.joined}</TableCell>
                 <TableCell>
@@ -102,24 +158,20 @@ const CustomersPage = () => {
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Full Name</label>
-              <Input />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input type="email" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Phone</label>
-              <Input type="tel" />
+              <Input name="Customer_Name" value={newCustomer.Customer_Name} onChange={handleInputChange} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Address</label>
-              <Input />
+              <Input name="Customer_Address" value={newCustomer.Customer_Address} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Phone</label>
+              <Input name="Customer_Phone" value={newCustomer.Customer_Phone} onChange={handleInputChange} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => setIsDialogOpen(false)}>Save Customer</Button>
+            <Button onClick={handleSubmit}>Save Customer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

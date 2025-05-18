@@ -1,4 +1,5 @@
-import { CreditCard, Receipt, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { CreditCard, Search } from 'lucide-react';
 import React from 'react';
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -17,37 +18,89 @@ import {
   TableHeader,
   TableRow
 } from "../components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "../components/ui/dialog";
+
+// Define the Payment type
+interface Payment {
+  PaymentId: number;
+  Transaction_Date: string;
+  Amount: string;
+  Payment_Method: string;
+  CustomerId: number;
+}
 
 const PaymentsPage = () => {
-  // Mock data for payments
-  const payments = [
-    { id: 'PAY-1234', customer: 'John Doe', courier: 'CUR-5678', amount: '$45.99', status: 'Paid', method: 'Credit Card', date: '2025-04-20' },
-    { id: 'PAY-5678', customer: 'Mary Johnson', courier: 'CUR-9012', amount: '$32.50', status: 'Paid', method: 'PayPal', date: '2025-04-19' },
-    { id: 'PAY-9012', customer: 'David Wilson', courier: 'CUR-3456', amount: '$55.75', status: 'Pending', method: 'Bank Transfer', date: '2025-04-21' },
-    { id: 'PAY-3456', customer: 'Emma Davis', courier: 'CUR-7890', amount: '$28.25', status: 'Paid', method: 'Credit Card', date: '2025-04-18' },
-    { id: 'PAY-7890', customer: 'James Taylor', courier: 'CUR-1234', amount: '$61.00', status: 'Failed', method: 'Credit Card', date: '2025-04-17' },
-  ];
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [newPayment, setNewPayment] = useState({
+    Transaction_Date: '',
+    Amount: '',
+    Payment_Method: '',
+    CustomerId: ''
+  });
 
-  // State for filtering
-  const [filterStatus, setFilterStatus] = React.useState<string>('All');
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/payments');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data: Payment[] = await response.json();
+        setPayments(data);
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+      }
+    };
 
-  // Filtered payments based on status
-  const filteredPayments = filterStatus === 'All' 
-    ? payments 
-    : payments.filter(payment => payment.status === filterStatus);
+    fetchPayments();
+  }, []);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setNewPayment(prevState => ({
+      ...prevState,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/payments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newPayment),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add payment');
+      }
+
+      const result = await response.json();
+      console.log(result);
+      setIsDialogOpen(false);
+      setNewPayment({ Transaction_Date: '', Amount: '', Payment_Method: '', CustomerId: '' });
+    } catch (error) {
+      console.error('Error adding payment:', error);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Payment Management</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => console.log('Generating report...')}>
-            <Receipt className="mr-2 h-4 w-4" /> Generate Report
-          </Button>
-          <Button>
-            <CreditCard className="mr-2 h-4 w-4" /> Record Payment
-          </Button>
-        </div>
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <CreditCard className="mr-2 h-4 w-4" /> Record Payment
+        </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
@@ -56,7 +109,7 @@ const PaymentsPage = () => {
           <Input placeholder="Search payments..." className="pl-8" />
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          <Select onValueChange={setFilterStatus} value={filterStatus}>
+          <Select>
             <SelectTrigger className="w-full sm:w-[180px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
@@ -75,37 +128,58 @@ const PaymentsPage = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Payment ID</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Courier</TableHead>
+              <TableHead>Transaction Date</TableHead>
               <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Method</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead>Payment Method</TableHead>
+              <TableHead>Customer ID</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredPayments.map((payment) => (
-              <TableRow key={payment.id}>
-                <TableCell>{payment.id}</TableCell>
-                <TableCell>{payment.customer}</TableCell>
-                <TableCell>{payment.courier}</TableCell>
-                <TableCell>{payment.amount}</TableCell>
-                <TableCell>
-                  <span className={
-                    payment.status === 'Paid' ? 'text-green-600' :
-                    payment.status === 'Pending' ? 'text-yellow-600' :
-                    'text-red-600'
-                  }>
-                    {payment.status}
-                  </span>
-                </TableCell>
-                <TableCell>{payment.method}</TableCell>
-                <TableCell>{payment.date}</TableCell>
+            {payments.map((payment) => (
+              <TableRow key={payment.PaymentId}>
+                <TableCell>{payment.PaymentId}</TableCell>
+                <TableCell>{payment.Transaction_Date}</TableCell>
+                <TableCell>{payment.Amount}</TableCell>
+                <TableCell>{payment.Payment_Method}</TableCell>
+                <TableCell>{payment.CustomerId}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Record New Payment</DialogTitle>
+            <DialogDescription>
+              Enter the details for the new payment.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Transaction Date</label>
+              <Input type="date" name="Transaction_Date" value={newPayment.Transaction_Date} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Amount</label>
+              <Input name="Amount" value={newPayment.Amount} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Payment Method</label>
+              <Input name="Payment_Method" value={newPayment.Payment_Method} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Customer ID</label>
+              <Input name="CustomerId" value={newPayment.CustomerId} onChange={handleInputChange} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmit}>Save Payment</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

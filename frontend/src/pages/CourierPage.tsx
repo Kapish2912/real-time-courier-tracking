@@ -1,10 +1,10 @@
+import { useEffect, useState } from 'react';
 import {
   Edit,
   PlusCircle,
   Search,
   Trash2
 } from 'lucide-react';
-import { useState } from 'react';
 import { Button } from "../components/ui/button";
 import {
   Dialog,
@@ -31,17 +31,96 @@ import {
   TableRow
 } from "../components/ui/table";
 
+// Define the Courier type
+// This should match the structure of your courier data
+interface Courier {
+  CourierId: number;
+  Weight: number;
+  Status: string;
+  TrackingNumber: string;
+  ReceiverId: number;
+  SenderId: number;
+  Shipment_Date: string; 
+}
+
 const CourierPage = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [couriers, setCouriers] = useState<Courier[]>([]);
+  const [newCourier, setNewCourier] = useState({
+    SenderId: '',
+    ReceiverId: '',
+    Weight: '',
+    Status: 'in-transit',
+    TrackingNumber: '',
+    Shipment_Date: '',
+    Sender_Name: '',
+    Sender_Phone: '',
+    Sender_Address: '',
+    Receiver_Name: '',
+    Receiver_Phone: '',
+    Receiver_Address: ''
+  });
 
-  // Mock data for couriers
-  const couriers = [
-    { id: 'CUR-1234', sender: 'John Doe', receiver: 'Alice Smith', origin: 'New York', destination: 'Boston', status: 'In Transit', date: '2025-04-20', weight: '2.5kg' },
-    { id: 'CUR-5678', sender: 'Mary Johnson', receiver: 'Bob Brown', origin: 'Chicago', destination: 'Detroit', status: 'Delivered', date: '2025-04-19', weight: '1.8kg' },
-    { id: 'CUR-9012', sender: 'David Wilson', receiver: 'Sarah Lee', origin: 'Los Angeles', destination: 'San Francisco', status: 'Processing', date: '2025-04-21', weight: '3.2kg' },
-    { id: 'CUR-3456', sender: 'Emma Davis', receiver: 'Michael Clark', origin: 'Miami', destination: 'Orlando', status: 'Out for Delivery', date: '2025-04-20', weight: '4.5kg' },
-    { id: 'CUR-7890', sender: 'James Taylor', receiver: 'Jennifer White', origin: 'Houston', destination: 'Dallas', status: 'In Transit', date: '2025-04-21', weight: '1.3kg' },
-  ];
+  useEffect(() => {
+    const fetchCouriers = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/api/couriers');
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data: Courier[] = await response.json(); // Ensure data is typed
+        setCouriers(data); // Set the fetched data to state
+      } catch (error) {
+        console.error('Error fetching couriers:', error);
+      }
+    };
+
+    fetchCouriers(); // Call the fetch function
+  }, []); // Empty dependency array means this runs once on mount
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setNewCourier(prevState => ({
+      ...prevState,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/couriers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newCourier),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add courier');
+      }
+
+      const result = await response.json();
+      console.log(result); 
+      setIsDialogOpen(false); 
+      setNewCourier({ 
+        SenderId: '', 
+        ReceiverId: '', 
+        Weight: '', 
+        Status: 'in-transit', 
+        TrackingNumber: '', 
+        Shipment_Date: '', 
+        Sender_Name: '', 
+        Sender_Phone: '', 
+        Sender_Address: '', 
+        Receiver_Name: '', 
+        Receiver_Phone: '', 
+        Receiver_Address: '' 
+      }); 
+    } catch (error) {
+      console.error('Error adding courier:', error);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -66,8 +145,7 @@ const CourierPage = () => {
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="in-transit">In Transit</SelectItem>
               <SelectItem value="delivered">Delivered</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-              <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline">Filter</Button>
@@ -78,35 +156,29 @@ const CourierPage = () => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Tracking ID</TableHead>
-              <TableHead>Sender</TableHead>
-              <TableHead>Receiver</TableHead>
-              <TableHead className="hidden md:table-cell">Origin</TableHead>
-              <TableHead className="hidden md:table-cell">Destination</TableHead>
+              <TableHead>Tracking Number</TableHead>
+              <TableHead>Weight (kg)</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="hidden sm:table-cell">Date</TableHead>
+              <TableHead>Shipment Date</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {couriers.map((courier) => (
-              <TableRow key={courier.id}>
-                <TableCell className="font-medium">{courier.id}</TableCell>
-                <TableCell>{courier.sender}</TableCell>
-                <TableCell>{courier.receiver}</TableCell>
-                <TableCell className="hidden md:table-cell">{courier.origin}</TableCell>
-                <TableCell className="hidden md:table-cell">{courier.destination}</TableCell>
+              <TableRow key={courier.TrackingNumber}>
+                <TableCell className="font-medium">{courier.TrackingNumber}</TableCell>
+                <TableCell>{courier.Weight}</TableCell>
                 <TableCell>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    courier.status === 'Delivered' ? 'bg-green-100 text-green-800' :
-                    courier.status === 'In Transit' ? 'bg-blue-100 text-blue-800' :
-                    courier.status === 'Processing' ? 'bg-yellow-100 text-yellow-800' :
+                    courier.Status === 'Delivered' ? 'bg-green-100 text-green-800' :
+                    courier.Status === 'In Transit' ? 'bg-blue-100 text-blue-800' :
+                    courier.Status === 'Pending' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-purple-100 text-purple-800'
                   }`}>
-                    {courier.status}
+                    {courier.Status}
                   </span>
                 </TableCell>
-                <TableCell className="hidden sm:table-cell">{courier.date}</TableCell>
+                <TableCell>{courier.Shipment_Date}</TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
                     <Button variant="ghost" size="icon">
@@ -133,43 +205,67 @@ const CourierPage = () => {
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Sender Name</label>
-              <Input />
+              <label className="text-sm font-medium">Sender ID</label>
+              <Input name="SenderId" value={newCourier.SenderId} onChange={handleInputChange} />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Receiver Name</label>
-              <Input />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Origin</label>
-              <Input />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Destination</label>
-              <Input />
+              <label className="text-sm font-medium">Receiver ID</label>
+              <Input name="ReceiverId" value={newCourier.ReceiverId} onChange={handleInputChange} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Weight (kg)</label>
-              <Input type="number" step="0.1" />
+              <Input type="number" step="0.1" name="Weight" value={newCourier.Weight} onChange={handleInputChange} />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Status</label>
-              <Select defaultValue="processing">
+              <Select name="Status" value={newCourier.Status} onValueChange={(value) => setNewCourier(prevState => ({ ...prevState, Status: value }))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="processing">Processing</SelectItem>
                   <SelectItem value="in-transit">In Transit</SelectItem>
-                  <SelectItem value="out-for-delivery">Out for Delivery</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
                   <SelectItem value="delivered">Delivered</SelectItem>
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Sender Name</label>
+              <Input name="Sender_Name" value={newCourier.Sender_Name} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Sender Phone</label>
+              <Input name="Sender_Phone" value={newCourier.Sender_Phone} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Sender Address</label>
+              <Input name="Sender_Address" value={newCourier.Sender_Address} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Receiver Name</label>
+              <Input name="Receiver_Name" value={newCourier.Receiver_Name} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Receiver Phone</label>
+              <Input name="Receiver_Phone" value={newCourier.Receiver_Phone} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Receiver Address</label>
+              <Input name="Receiver_Address" value={newCourier.Receiver_Address} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tracking Number</label>
+              <Input name="TrackingNumber" value={newCourier.TrackingNumber} onChange={handleInputChange} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Shipment Date</label>
+              <Input type="date" name="Shipment_Date" value={newCourier.Shipment_Date} onChange={handleInputChange} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => setIsDialogOpen(false)}>Save Courier</Button>
+            <Button onClick={handleSubmit}>Save Courier</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
